@@ -183,10 +183,6 @@ def show_summary(summary: str) -> None:
         console.print("No summary found.")
 
 if __name__ == "__main__":
-    website = Website("https://edwarddonner.com")
     summarizer = LlmSummarizer(Config())
-    summary = summarizer.summarize(website)
-    show_summary(summary)
-    print("-" * 20)
     summary = summarizer.summarize("https://cnn.com")
     show_summary(summary)
