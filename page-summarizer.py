@@ -66,22 +66,26 @@ class Website:
         """
         Scrape the website using pyppeteer.
         """
-        async def main():
+        import asyncio
+        async def main() -> None:
             browser = await launch(headless=True)
             page = await browser.newPage()
-            await stealth(page)
             await page.setRequestInterception(True)
             page.on("request", lambda req: asyncio.ensure_future(
-                req.abort() if req.resourceType in ("script") else req.continue_()
+                req.abort() if req.resourceType == "stylesheet" else req.continue_()
             ))
+            await stealth(page)
             await page.goto(self.url, {'waitUntil': ['networkidle0']})
-            self.__text = await page.evaluate("() => document.body.innerText")
-            self.__title = await page.evaluate("() => document.title")
+
+            self.__title = await page.title()
+            self.__text = await page.evaluate('() => document.body.innerText')
+            
+            await page.close()
             await browser.close()
 
         asyncio.run(main())
-    
-    def __init__(self, url: str):
+
+    def __init__(self, url: str) -> None:
         self.url = url
 
     def __str__(self) -> str:
@@ -181,7 +185,7 @@ class LlmSummarizer:
     
     #endregion
     
-    def __init__(self, config: Config):
+    def __init__(self, config: Config) -> None:
         self.__config = config
 
 def display_markdown(content: str) -> None:
