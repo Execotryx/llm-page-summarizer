@@ -86,7 +86,7 @@ class Website:
             ))
             
             try:
-                await page.goto(self.url)
+                await page.goto(self.url, {"timeout": 60000})
                 self.__title = await page.title()
                 self.__text = await page.evaluate('() => document.body.innerText')
             except Exception as e:
