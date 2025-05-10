@@ -70,13 +70,23 @@ class Website:
         async def main() -> None:
             browser = await launch(headless=True)
             page = await browser.newPage()
+            await stealth(page)
+            
+            # randomize user agent
+            user_agents: List[str] = [
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15",
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36",
+            ]
+            ua = user_agents[randint(0, len(user_agents) - 1)]
+            await page.setUserAgent(ua)
             await page.setRequestInterception(True)
             page.on("request", lambda req: asyncio.ensure_future(
                 req.abort() if req.resourceType == "stylesheet" else req.continue_()
             ))
-            await stealth(page)
+            
             try:
-                await page.goto(self.url, {'waitUntil': ['networkidle0'], 'timeout': 60000})
+                await page.goto(self.url)
                 self.__title = await page.title()
                 self.__text = await page.evaluate('() => document.body.innerText')
             except Exception as e:
@@ -177,13 +187,17 @@ class LlmSummarizer:
         if isinstance(website, str):
             website = Website(website)
         messages: List[Dict[str, str]] = self.messages_for(website)
-        response: ChatCompletion = self.openai.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            temperature=0.2,
-            max_tokens=512,
-        )
-        return response.choices[0].message.content
+        try:
+            response: ChatCompletion = self.openai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                temperature=0.2,
+                max_tokens=512,
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            console.print(f"[red]Error summarizing {website if isinstance(website, str) else website.url}: {e}[red]")
+            return None
     
     #endregion
     
