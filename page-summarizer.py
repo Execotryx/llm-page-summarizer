@@ -75,13 +75,15 @@ class Website:
                 req.abort() if req.resourceType == "stylesheet" else req.continue_()
             ))
             await stealth(page)
-            await page.goto(self.url, {'waitUntil': ['networkidle0']})
-
-            self.__title = await page.title()
-            self.__text = await page.evaluate('() => document.body.innerText')
-            
-            await page.close()
-            await browser.close()
+            try:
+                await page.goto(self.url, {'waitUntil': ['networkidle0'], 'timeout': 60000})
+                self.__title = await page.title()
+                self.__text = await page.evaluate('() => document.body.innerText')
+            except Exception as e:
+                console.print(f"[red]Error scraping {self.url}: {e}[red]")
+            finally:
+                await page.close()
+                await browser.close()
 
         asyncio.run(main())
 
