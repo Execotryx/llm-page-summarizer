@@ -4,3 +4,4 @@ dotenv
 requests
 rich
 pyppeteer
+pyppeteer_stealth

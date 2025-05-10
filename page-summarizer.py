@@ -1,11 +1,17 @@
 import dotenv
-import requests
-from bs4 import BeautifulSoup
+import asyncio
+
+import os
+os.environ['PYPPETEER_CHROMIUM_REVISION'] = '1263111'
+
 from rich.console import Console
 from rich.markdown import Markdown
 from openai import OpenAI
 from openai.types.chat import ChatCompletion
 from typing import Optional, Union, Dict, List
+from pyppeteer import launch
+from pyppeteer_stealth import stealth
+from random import randint
 
 console = Console()
 
@@ -54,15 +60,26 @@ class Website:
     @url.setter
     def url(self, url: str) -> None:
         self.__url = url
-        response: requests.Response = requests.get(url)
-        if response.status_code == 200:
-            soup: BeautifulSoup = BeautifulSoup(response.content, "html.parser")
-            self.__title = soup.title.string if soup.title else "No title found"
-            for irrelevant in soup.body(["script", "style", "img", "input"]):
-                irrelevant.decompose()
-            self.__text = soup.body.get_text()
-        else:
-            raise ValueError(f"Failed to fetch the URL: {url}")
+        self.__scrape()
+
+    def __scrape(self) -> None:
+        """
+        Scrape the website using pyppeteer.
+        """
+        async def main():
+            browser = await launch(headless=True)
+            page = await browser.newPage()
+            await stealth(page)
+            await page.setRequestInterception(True)
+            page.on("request", lambda req: asyncio.ensure_future(
+                req.abort() if req.resourceType in ("script") else req.continue_()
+            ))
+            await page.goto(self.url, {'waitUntil': ['networkidle0']})
+            self.__text = await page.evaluate("() => document.body.innerText")
+            self.__title = await page.evaluate("() => document.title")
+            await browser.close()
+
+        asyncio.run(main())
     
     def __init__(self, url: str):
         self.url = url
