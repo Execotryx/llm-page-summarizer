@@ -6,8 +6,7 @@ os.environ['PYPPETEER_CHROMIUM_REVISION'] = '1263111'
 
 from rich.console import Console
 from rich.markdown import Markdown
-from openai import OpenAI
-from openai.types.chat import ChatCompletion
+from ollama import chat, ChatResponse
 from typing import Optional, Union, Dict, List
 from pyppeteer import launch
 from pyppeteer_stealth import stealth
@@ -36,8 +35,12 @@ class Config:
         return None
 
     @property
-    def openai_api_key(self) -> str:
-        return self.get("OPENAI_API_KEY")
+    def ollama_url(self) -> str:
+        return self.get("OLLAMA_URL")
+
+    @property
+    def ollama_model(self) -> str:
+        return self.get("OLLAMA_MODEL")
 
 class Website:
 
@@ -113,20 +116,6 @@ class LlmSummarizer:
         return self.__config
     #endregion
 
-    #region OpenAI
-    __openai: OpenAI = None
-
-    @property
-    def openai(self) -> OpenAI:
-        """
-        Lazy load the OpenAI client. This is done to avoid creating the client if it's not needed.
-        """
-        if self.__openai is None:
-            self.__openai = OpenAI(api_key=self.config.openai_api_key)
-        return self.__openai
-
-    #endregion
-
     #region System behavior
     __system_behavior: Dict[str, str] = None
 
@@ -169,7 +158,7 @@ class LlmSummarizer:
 
     def messages_for(self, website: Website) -> List[Dict[str, str]]:
         """
-        Create the messages for the OpenAI API.
+        Create the messages for the Ollama model.
         """
         return [
             self.system_behavior,
@@ -188,13 +177,12 @@ class LlmSummarizer:
             website = Website(website)
         messages: List[Dict[str, str]] = self.messages_for(website)
         try:
-            response: ChatCompletion = self.openai.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=messages,
-                temperature=0.2,
-                max_tokens=512,
+            response: ChatResponse = chat(
+                model=self.config.ollama_model,
+                messages=messages
             )
-            return response.choices[0].message.content
+            return response.message.content
+        
         except Exception as e:
             console.print(f"[red]Error summarizing {website if isinstance(website, str) else website.url}: {e}[red]")
             return None
